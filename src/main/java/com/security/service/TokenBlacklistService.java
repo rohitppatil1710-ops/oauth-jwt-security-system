@@ -1,25 +1,34 @@
 package com.security.service;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Date;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TokenBlacklistService {
 
-    private final ConcurrentHashMap<String, Date> blacklistedTokens = new ConcurrentHashMap<>();
+    private static final String BLACKLIST_PREFIX = "blacklist:";
 
-    public void blacklistToken(String token, Date expiration) {
-        blacklistedTokens.put(token, expiration);
-        cleanExpiredTokens();
+    private final StringRedisTemplate redisTemplate;
+
+    public TokenBlacklistService(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
+    public void blacklistToken(String token, long expiryMillis) {
+
+        redisTemplate.opsForValue().set(
+                BLACKLIST_PREFIX + token,
+                "revoked",
+                expiryMillis,
+                TimeUnit.MILLISECONDS
+        );
     }
 
     public boolean isBlacklisted(String token) {
-        return blacklistedTokens.containsKey(token);
-    }
-
-    private void cleanExpiredTokens() {
-        Date now = new Date();
-        blacklistedTokens.entrySet().removeIf(entry -> entry.getValue().before(now));
+        return Boolean.TRUE.equals(
+                redisTemplate.hasKey(BLACKLIST_PREFIX + token)
+        );
     }
 }

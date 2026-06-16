@@ -48,28 +48,52 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request, String ipAddress) {
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
         );
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() ->
+                        new CustomException(
+                                "User not found",
+                                HttpStatus.NOT_FOUND
+                        ));
 
-        List<String> roles = user.getRoles().stream()
+        List<String> roles = user.getRoles()
+                .stream()
                 .map(Role::getRoleName)
                 .collect(Collectors.toList());
 
-        List<String> permissions = user.getRoles().stream()
+        List<String> permissions = user.getRoles()
+                .stream()
                 .flatMap(role -> role.getPermissions().stream())
-                .map(p -> p.getPermissionName())
+                .map(permission -> permission.getPermissionName())
                 .distinct()
                 .collect(Collectors.toList());
 
-        String tenantName = user.getTenant() != null ? user.getTenant().getTenantName() : "default";
-        String accessToken = jwtUtil.generateToken(user.getUsername(), tenantName, roles, permissions);
+        String tenantName = user.getTenant() != null
+                ? user.getTenant().getTenantName()
+                : "default";
+
+        String accessToken = jwtUtil.generateToken(
+                user.getUsername(),
+                tenantName,
+                roles,
+                permissions
+        );
+
         String refreshToken = createRefreshToken(user);
 
-        auditLogService.log(user.getUsername(), "LOGIN", ipAddress, true);
+        auditLogService.log(
+                user.getUsername(),
+                "LOGIN",
+                ipAddress,
+                true
+        );
 
         LoginResponse response = new LoginResponse();
         response.setAccessToken(accessToken);
@@ -78,31 +102,52 @@ public class AuthService {
         response.setTenantName(tenantName);
         response.setRoles(roles);
         response.setPermissions(permissions);
+
         return response;
     }
 
     public LoginResponse refreshToken(String refreshToken) {
+
         RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new CustomException("Invalid refresh token", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() ->
+                        new CustomException(
+                                "Invalid refresh token",
+                                HttpStatus.UNAUTHORIZED
+                        ));
 
         if (token.getExpiryDate().isBefore(Instant.now())) {
             refreshTokenRepository.delete(token);
-            throw new CustomException("Refresh token expired", HttpStatus.UNAUTHORIZED);
+
+            throw new CustomException(
+                    "Refresh token expired",
+                    HttpStatus.UNAUTHORIZED
+            );
         }
 
         User user = token.getUser();
-        List<String> roles = user.getRoles().stream()
+
+        List<String> roles = user.getRoles()
+                .stream()
                 .map(Role::getRoleName)
                 .collect(Collectors.toList());
 
-        List<String> permissions = user.getRoles().stream()
+        List<String> permissions = user.getRoles()
+                .stream()
                 .flatMap(role -> role.getPermissions().stream())
-                .map(p -> p.getPermissionName())
+                .map(permission -> permission.getPermissionName())
                 .distinct()
                 .collect(Collectors.toList());
 
-        String tenantName = user.getTenant() != null ? user.getTenant().getTenantName() : "default";
-        String newAccessToken = jwtUtil.generateToken(user.getUsername(), tenantName, roles, permissions);
+        String tenantName = user.getTenant() != null
+                ? user.getTenant().getTenantName()
+                : "default";
+
+        String newAccessToken = jwtUtil.generateToken(
+                user.getUsername(),
+                tenantName,
+                roles,
+                permissions
+        );
 
         LoginResponse response = new LoginResponse();
         response.setAccessToken(newAccessToken);
@@ -111,23 +156,49 @@ public class AuthService {
         response.setTenantName(tenantName);
         response.setRoles(roles);
         response.setPermissions(permissions);
+
         return response;
     }
 
-    public void logout(String token, String username, String ipAddress) {
-        tokenBlacklistService.blacklistToken(token, jwtUtil.getExpirationFromToken(token));
-        userRepository.findByUsername(username).ifPresent(user ->
-                refreshTokenRepository.deleteByUser(user)
+    public void logout(String token,
+                       String username,
+                       String ipAddress) {
+
+        long expiryMillis =
+                jwtUtil.getExpirationFromToken(token).getTime()
+                        - System.currentTimeMillis();
+
+        if (expiryMillis > 0) {
+            tokenBlacklistService.blacklistToken(
+                    token,
+                    expiryMillis
+            );
+        }
+
+        userRepository.findByUsername(username)
+                .ifPresent(refreshTokenRepository::deleteByUser);
+
+        auditLogService.log(
+                username,
+                "LOGOUT",
+                ipAddress,
+                true
         );
-        auditLogService.log(username, "LOGOUT", ipAddress, true);
     }
 
     private String createRefreshToken(User user) {
+
         refreshTokenRepository.deleteByUser(user);
+
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(UUID.randomUUID().toString());
         refreshToken.setUser(user);
-        refreshToken.setExpiryDate(Instant.now().plusMillis(refreshExpiration));
-        return refreshTokenRepository.save(refreshToken).getToken();
+        refreshToken.setExpiryDate(
+                Instant.now().plusMillis(refreshExpiration)
+        );
+
+        return refreshTokenRepository
+                .save(refreshToken)
+                .getToken();
     }
 }
