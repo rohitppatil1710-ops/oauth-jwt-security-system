@@ -15,6 +15,22 @@
     {
       "key": "refreshToken",
       "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "userAccessToken",
+      "value": ""
+    },
+    {
+      "key": "managerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
     }
   ],
   "item": [
