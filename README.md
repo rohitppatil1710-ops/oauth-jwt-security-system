@@ -50,7 +50,7 @@ Technology Stack
 
 Technology| Version
 Java| 17
-Spring Boot| 3.3.5
+Spring Boot| 3.5.15
 Spring Security| 6
 MySQL| 8
 Redis (Memurai)| Latest
