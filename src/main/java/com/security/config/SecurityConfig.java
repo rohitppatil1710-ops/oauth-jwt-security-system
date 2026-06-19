@@ -133,7 +133,7 @@ public class SecurityConfig {
     }
 
     /**
-     * BCrypt Password Encoder for user passwords and OAuth2 client secrets
+     * BCrypt Password Encoder for user passwords and OAuth2 client secretss
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
